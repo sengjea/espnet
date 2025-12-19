@@ -17,6 +17,7 @@ SECONDS=0
 stage=1
 stop_stage=100
 fs=24000
+g2p=None
 
 log "$0 $*"
 
@@ -47,8 +48,6 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
 
     for x in ${train_set} ${train_dev} ${recog_set}; do
         src_data=data/${x}
-        mv ${src_data}/score.scp.tmp ${src_data}/score.scp
-        utils/utt2spk_to_spk2utt.pl < ${src_data}/utt2spk > ${src_data}/spk2utt
         utils/fix_data_dir.sh --utt_extra_files "label score.scp" ${src_data}
     done
 fi
