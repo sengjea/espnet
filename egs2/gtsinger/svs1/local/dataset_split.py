@@ -47,52 +47,49 @@ def makedir(data_url):
 
     os.makedirs(data_url)
 
-def read_phoneme_textgrid(filepath):
+def phoneme_iterator(filepath):
     tg = textgrid.TextGrid.fromFile(filepath)
-    for tier in tg.tiers:
-      if tier.name == "phone":
-        for interval in tier:
-          yield interval.minTime, interval.maxTime, interval.mark.strip("<>")
+    yield from next((t for t in tg.tiers if t.name == "phone"))
 
 
 def process_pho_info(phoneme_iter):
     label_info = []
     pho_info = []
-    for start_time, end_time, label in phoneme_iter:
-        label_info.append(f"{start_time} {end_time} {label}")
-        pho_info.append(label)
+    for interval in phoneme_iter:
+      label = interval.mark.strip("<>")
+      label_info.append(f"{interval.minTime} {interval.maxTime} {label}")
+      pho_info.append(label)
 
     return " ".join(label_info), " ".join(pho_info)
 
+def word_phoneme_iterator(filepath):
+    tg = textgrid.TextGrid.fromFile(filepath)
+    word_iterator = iter(next((t for t in tg.tiers if t.name == "word")).intervals)
+    phoneme_iterator = iter(next((t for t in tg.tiers if t.name == "phone")).intervals)
+    word = next(word_iterator)
+    for phoneme in phoneme_iterator:
+      yield word.mark.strip("<>"), phoneme.mark.strip("<>"), phoneme.maxTime
+      if phoneme.maxTime >= word.maxTime:
+        word = next(word_iterator, None)
 
-def process_score_info(notes, phoneme_iter):
+def process_score_info(notes, word_phoneme_iter):
     score_notes = []
-    current_phoneme = None
     for note in notes:
-        if note.lyric == "—":
-            score_notes[-1][1] = note.et
-        if note.lyric == "P":
-            note.lyric = "AP"
-        if note.lyric != "—":
-            phonemes = []
-            while True:
-              if current_phoneme == None:
-                current_phoneme = next(phoneme_iter)
-                print(current_phoneme)
-              if current_phoneme[1] > note.et:
-                break
-              else:
-                phonemes.append(current_phoneme[2])
-                current_phoneme = None
-            score = [
+      phonemes = []
+      word, phoneme, maxTime = next(word_phoneme_iter, (None, None, note.et))
+      if phoneme:
+        phonemes.append(phoneme)
+      while maxTime < note.et:
+        word, phoneme, maxTime = next(word_phoneme_iter, (word, None, note.et))
+        if phoneme:
+          phonemes.append(phoneme)
+      score_notes.append([
                     note.st,
                     note.et,
-                    note.lyric,
+                    word if word != "P" else "AP",
                     note.midi,
                     "_".join(phonemes),
-                ]
-            print(score)
-            score_notes.append(score)
+                ])
 
     return score_notes
 
@@ -100,9 +97,9 @@ def process_score_info(notes, phoneme_iter):
 def process_json_to_pho_score(basepath, tempo, notes):
     parts = basepath.split("/")
     textgrid_file = basepath + ".TextGrid"
-    label_info, pho_info = process_pho_info(read_phoneme_textgrid(textgrid_file))
+    label_info, pho_info = process_pho_info(phoneme_iterator(textgrid_file))
 
-    score_notes = process_score_info(notes, read_phoneme_textgrid(textgrid_file))
+    score_notes = process_score_info(notes, word_phoneme_iterator(textgrid_file))
 
     return (
         label_info,
@@ -135,7 +132,6 @@ def process_subset(src_data, subset, filter_func, fs, wav_dump, score_dump):
                   continue
 
                 utt_id = relativepath.replace("/","_").replace(" ", "_")
-
                 wavscp.write("{} {}\n".format(utt_id, filepath))
                 utt2spk.write("{} {}\n".format(utt_id, speaker))
                 xml_scp.write(
@@ -143,22 +139,24 @@ def process_subset(src_data, subset, filter_func, fs, wav_dump, score_dump):
                         utt_id, basepath + ".musicxml"
                     )
                 )
-
+    xml_scp.close()
     reader = XMLReader(os.path.join(subset, "xml.scp"))
     score_writer = SingingScoreWriter(score_dump, os.path.join(subset, "score.scp"))
     text = open(os.path.join(subset, "text"), "w", encoding="utf-8")
     for utt_id in reader.keys():
-        print(f"Processing {utt_id}")
         musicxml = reader.get_path(utt_id)
         tempo, notes = reader[utt_id]
         basepath = os.path.splitext(musicxml)[0]
-        label_info, pho_info, score_info = process_json_to_pho_score(
-          basepath, tempo, notes
-        )
+        try:
+          label_info, pho_info, score_info = process_json_to_pho_score(
+            basepath, tempo, notes
+          )
 
-        label_scp.write("{} {}\n".format(utt_id, label_info))
-        text.write("{} {}\n".format(utt_id, pho_info))
-        score_writer[utt_id] = score_info
+          label_scp.write("{} {}\n".format(utt_id, label_info))
+          text.write("{} {}\n".format(utt_id, pho_info))
+          score_writer[utt_id] = score_info
+        except Exception as e:
+          print(f"Unable to process {utt_id}: {e}")
 
 
 if __name__ == "__main__":
@@ -179,13 +177,15 @@ if __name__ == "__main__":
 
     if not os.path.exists(args.wav_dump):
         os.makedirs(args.wav_dump)
-
+    print("processing train")
     process_subset(
         args.src_data, args.train, train_check, args.fs, args.wav_dump, args.score_dump
     )
+    print("processing dev")
     process_subset(
         args.src_data, args.dev, dev_check, args.fs, args.wav_dump, args.score_dump
     )
+    print("processing test")
     process_subset(
         args.src_data, args.test, test_check, args.fs, args.wav_dump, args.score_dump
     )
