@@ -11,6 +11,8 @@ if ! python -c "import packaging.version" &> /dev/null; then
     python3 -m pip install packaging
 fi
 
+torch_version="$(python3 -c 'import torch; print(torch.__version__)')"
+
 python3 -m pip install lightning
 
 # Check the pytorch version is not changed from the original version
