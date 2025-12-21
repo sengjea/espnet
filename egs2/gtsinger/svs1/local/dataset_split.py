@@ -133,7 +133,7 @@ def process_subset(src_data, subset, filter_func, fs, wav_dump, score_dump):
 
                 utt_id = relativepath.replace("/","_").replace(" ", "_")
                 wavscp.write("{} {}\n".format(utt_id, filepath))
-                utt2spk.write("{} {}\n".format(utt_id, speaker))
+                utt2spk.write("{} {}\n".format(utt_id, utt_id))
                 xml_scp.write(
                     "{} {}\n".format(
                         utt_id, basepath + ".musicxml"

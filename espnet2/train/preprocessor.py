@@ -1619,7 +1619,7 @@ class SVSPreprocessor(AbsPreprocessor):
 
             # Calculate features
             index_lab = 0
-
+            print(f"Processing {uid} {text}")
             for st, et, syb, note, phns in syb_info:
                 dur = et - st
                 _duration_syb = int(dur / self.time_shift + 0.5)
@@ -1635,6 +1635,7 @@ class SVSPreprocessor(AbsPreprocessor):
                     pre_seg = self.phn_seg[phn_num][k]
                     # timeseq from lab
                     assert text[index_lab] == phone[k]
+                    print(f"{len(text)}, {index_lab} {phone[k]}")
                     _duration_phn = int(
                         (lab_timeseq[index_lab][1] - lab_timeseq[index_lab][0])
                         / self.time_shift
