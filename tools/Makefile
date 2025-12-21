@@ -108,7 +108,7 @@ endif
 	touch numpy.done
 
 numba.done: numpy.done
-	. ./activate_python.sh && python3 -m pip install -U numba
+	. ./activate_python.sh && python3 -m pip install numba
 	touch numba.done
 
 # NOTE(kamo): Install numba before installing torch because numba requires specific numpy version now

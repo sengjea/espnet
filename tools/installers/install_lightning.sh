@@ -10,15 +10,8 @@ fi
 if ! python -c "import packaging.version" &> /dev/null; then
     python3 -m pip install packaging
 fi
-torch_version=$(python3 -c "import torch; print(torch.__version__)")
 
-echo "[INFO] torch_version=${torch_version}"
-
-cat >> lightning_constraints.txt << EOF
-torch==${torch_version}
-EOF
-
-python3 -m pip install -c lightning_constraints.txt lightning
+python3 -m pip install lightning
 
 # Check the pytorch version is not changed from the original version
 current_torch_version="$(python3 -c 'import torch; print(torch.__version__)')"
