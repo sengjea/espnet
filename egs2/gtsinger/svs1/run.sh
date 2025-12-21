@@ -39,7 +39,7 @@ g2p=None
 cleaner=none
 
 ./svs.sh \
-    --lang zh \
+    --lang en \
     --local_data_opts "--stage 1" \
     --feats_type raw \
     --fs "${fs}" \
